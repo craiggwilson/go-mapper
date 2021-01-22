@@ -65,6 +65,10 @@ func (c *Config) AddTypeMapperFromFunc(fn interface{}) error {
 			reflect.ValueOf(src),
 		})
 
+		if result[0].IsNil() {
+			return nil
+		}
+
 		return result[0].Interface().(error)
 	}
 
