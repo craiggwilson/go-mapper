@@ -1,14 +1,14 @@
-package mapper
+package core
 
 import (
 	"fmt"
 	"reflect"
 )
 
-// NewFunctionTypeMapper makes a FunctionTypeMapper. The fn argument must match the signature
+// MapperFromFunc takes a function and creates a Mapper. The fn argument must match the signature
 // func(dst <type>, src <type>) error or func(ctx Context, dst <type>, src <type>). If fn is not a function,
 // or it's signature does not match the requirements, a panic is raised.
-func NewFunctionTypeMapper(fn interface{}) *FunctionTypeMapper {
+func MapperFromFunc(fn interface{}) *FunctionMapper {
 	t := reflect.TypeOf(fn)
 	if t.Kind() != reflect.Func {
 		panic(fmt.Errorf("fn argument must be a func but got a %q", t.Kind()))
@@ -17,7 +17,7 @@ func NewFunctionTypeMapper(fn interface{}) *FunctionTypeMapper {
 	switch t.NumOut() {
 	case 1:
 		if !t.Out(0).AssignableTo(tErr) {
-			panic(fmt.Sprintf("fn function must return an error, but returns %q", t.Out(0)))
+			panic(fmt.Errorf("fn function must return an error, but returns %q", t.Out(0)))
 		}
 	default:
 		panic(fmt.Errorf("fn function must return 1 value, but had %d", t.NumOut()))
@@ -36,13 +36,13 @@ func NewFunctionTypeMapper(fn interface{}) *FunctionTypeMapper {
 	}
 
 	v := reflect.ValueOf(fn)
-	fnWrapper := func(ctx Context, dst interface{}, src interface{}) error {
+	mapFn := func(ctx Context, dst reflect.Value, src reflect.Value) error {
 		in := make([]reflect.Value, t.NumIn())
 		if len(in) == 3 {
 			in[0] = reflect.ValueOf(ctx)
 		}
-		in[argPos] = reflect.ValueOf(dst)
-		in[argPos+1] = reflect.ValueOf(src)
+		in[argPos] = dst
+		in[argPos+1] = src
 		result := v.Call(in)
 
 		if result[0].IsNil() {
@@ -52,31 +52,44 @@ func NewFunctionTypeMapper(fn interface{}) *FunctionTypeMapper {
 		return result[0].Interface().(error)
 	}
 
-	return &FunctionTypeMapper{
-		dst:   t.In(argPos),
-		src:   t.In(argPos +1),
-		mapFn: fnWrapper,
+	return NewFunctionMapper(t.In(argPos), t.In(argPos +1), mapFn)
+}
+
+// NewFunctionMapper makes a FunctionMapper.
+func NewFunctionMapper(dst reflect.Type, src reflect.Type, mapFn MapperFunc) *FunctionMapper {
+	return &FunctionMapper{
+		dst: dst,
+		src: src,
+		mapFn: mapFn,
 	}
 }
 
-// FunctionTypeMapper implements the TypeMapper interface by invoking a function
-type FunctionTypeMapper struct {
+// FunctionMapper implements the TypeMapper interface by invoking a function
+type FunctionMapper struct {
 	dst   reflect.Type
 	src   reflect.Type
-	mapFn func(ctx Context, dst interface{}, src interface{}) error
+	mapFn MapperFunc
 }
 
 // Dst implements the TypeMapper interface.
-func (tm *FunctionTypeMapper) Dst() reflect.Type {
+func (tm *FunctionMapper) Dst() reflect.Type {
 	return tm.dst
 }
 
 // Src implements the TypeMapper interface.
-func (tm *FunctionTypeMapper) Src() reflect.Type {
+func (tm *FunctionMapper) Src() reflect.Type {
 	return tm.src
 }
 
 // Map implements the TypeMapper interface.
-func (tm *FunctionTypeMapper) Map(ctx Context, dst interface{}, src interface{}) error {
+func (tm *FunctionMapper) Map(ctx Context, dst reflect.Value, src reflect.Value) error {
 	return tm.mapFn(ctx, dst, src)
 }
+
+// Func returns the MapperFunc that is called by Map.
+func (tm *FunctionMapper) Func() MapperFunc {
+	return tm.mapFn
+}
+
+// MapperFunc is a functional signature for mapping.
+type MapperFunc func(ctx Context, dst reflect.Value, src reflect.Value) error

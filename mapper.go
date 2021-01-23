@@ -2,16 +2,18 @@ package mapper
 
 import (
 	"reflect"
+
+	"github.com/craiggwilson/go-mapper/pkg/core"
 )
 
 // New makes a Mapper.
-func New(providers ...TypeMapperProvider) (*Mapper, error) {
-	src := make(map[reflect.Type]map[reflect.Type]TypeMapper)
+func New(providers ...core.Provider) (*Mapper, error) {
+	src := make(map[reflect.Type]map[reflect.Type]core.Mapper)
 	for _, p := range providers {
-		for _, tm := range p.TypeMappers() {
+		for _, tm := range p.Mappers() {
 			dstMap, ok := src[tm.Src()]
 			if !ok {
-				dstMap = make(map[reflect.Type]TypeMapper)
+				dstMap = make(map[reflect.Type]core.Mapper)
 				src[tm.Src()] = dstMap
 			}
 
@@ -30,32 +32,19 @@ func New(providers ...TypeMapperProvider) (*Mapper, error) {
 }
 
 type Mapper struct {
-	src map[reflect.Type]map[reflect.Type]TypeMapper
+	src map[reflect.Type]map[reflect.Type]core.Mapper
 }
 
 func (m *Mapper) Map(dst interface{}, src interface{}) error {
-	tDst := reflect.TypeOf(dst)
-	tSrc := reflect.TypeOf(src)
-	if dstMap, ok := m.src[tSrc]; ok {
-		if tm, ok := dstMap[tDst]; ok {
-			return tm.Map(nil, dst, src)
+	vDst := reflect.ValueOf(dst)
+	vSrc := reflect.ValueOf(src)
+	if dstMap, ok := m.src[vSrc.Type()]; ok {
+		if tm, ok := dstMap[vDst.Type()]; ok {
+			return tm.Map(nil, vDst, vSrc)
 		}
 	}
 
 	return ErrNoTypeMapperFound
 }
 
-// TypeMapperProvider provides TypeMappers.
-type TypeMapperProvider interface {
-	TypeMappers() []TypeMapper
-}
 
-// TypeMapper handles mapping from src to dst.
-type TypeMapper interface {
-	// Dst is the type of the destination.
-	Dst() reflect.Type
-	// Src is the type of the source.
-	Src() reflect.Type
-	// Map performs the mapping to dst from src.
-	Map(ctx Context, dst interface{}, src interface{}) error
-}

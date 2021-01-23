@@ -1,4 +1,4 @@
-package mapper
+package core
 
 import (
 	"reflect"
@@ -7,5 +7,4 @@ import (
 var (
 	tContext        = reflect.TypeOf((*Context)(nil)).Elem()
 	tErr            = reflect.TypeOf((*error)(nil)).Elem()
-	tAutoTypeConfig = reflect.TypeOf(new(AutoTypeOptions))
 )
