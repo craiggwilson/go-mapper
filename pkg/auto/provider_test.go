@@ -22,12 +22,7 @@ func TestStructToStruct(t *testing.T) {
 	}
 
 	ap := auto.NewProvider()
-	ap.AddStruct(func(_ *orderDTO, _ *order, opts *auto.StructOptions) {
-		opts.Field("CustomerName", func(dst *string, src *order) error {
-			*dst = src.Customer.Name
-			return nil
-		})
-	})
+	ap.AddStruct(func(_ *orderDTO, _ *order) {})
 
 	src := order{
 		ID: 10,

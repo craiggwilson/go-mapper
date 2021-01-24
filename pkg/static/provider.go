@@ -1,7 +1,7 @@
 package static
 
 import (
-	"github.com/craiggwilson/go-mapper/core"
+	"github.com/craiggwilson/go-mapper/pkg/core"
 )
 
 // NewProvider makes a Provider.

@@ -9,25 +9,37 @@ import (
 
 // NewProvider makes an Provider.
 func NewProvider() *Provider {
-	return &Provider{}
+	return &Provider{
+		namingConvention: PascalCaseNamingConvention{},
+	}
 }
 
 // Provider is used to automatically map types following prescribed strategies for naming and type conversion.
 type Provider struct {
 	// strategies
+	namingConvention NamingConvention
 
 	mappers []core.Mapper
 }
 
 // Mappers implements the core.Provider interface.
-func (c *Provider) Mappers() []core.Mapper {
-	return c.mappers
+func (p *Provider) Mappers() []core.Mapper {
+	return p.mappers
+}
+
+// UseNamingConvention applies the strategy to all future added structs.
+func (p *Provider) UseNamingConvention(nc NamingConvention) {
+	if nc == nil {
+		panic(fmt.Errorf("nc cannot be nil"))
+	}
+
+	p.namingConvention = nc
 }
 
 // AddStruct registers a struct for mapping. The fn argument must match the signature
 // func(dst <type>, src <type>) or func(dst <type>, src <type>, cfg *StructOptions). If fn is not a function,
 // or it's signature does not match the requirements, a panic is raised.
-func (c *Provider) AddStruct(fn interface{}) {
+func (p *Provider) AddStruct(fn interface{}) {
 	t := reflect.TypeOf(fn)
 	if t.Kind() != reflect.Func {
 		panic(fmt.Sprintf("fn argument must be a func but got a %q", t.Kind()))
@@ -40,6 +52,7 @@ func (c *Provider) AddStruct(fn interface{}) {
 	}
 
 	opts := newStructOptions()
+	opts.namingConvention = p.namingConvention
 	switch t.NumIn() {
 	case 3:
 		if !t.In(2).AssignableTo(tAutoTypeConfig) {
@@ -75,20 +88,29 @@ func (c *Provider) AddStruct(fn interface{}) {
 			continue
 		}
 
-		mapFn := opts.fieldMappingStrategy.Create(fld, opts.src)
-		if mapFn != nil {
-			opts.fields[fld.Name] = &FieldOptions{
-				dst: fld,
-				mapFn: mapFn,
-			}
+		accessor := applyNamingConvention(opts.namingConvention, fld.Name, opts.src)
+		if accessor == nil {
+			continue
+		}
+
+		opts.fields[fld.Name] = &FieldOptions{
+			dst: fld,
+			mapFn: func(ctx core.Context, vDst reflect.Value, vSrc reflect.Value) error {
+				if vSrc.IsNil() {
+					return nil
+				}
+				vSrc = accessor.ValueFrom(vSrc)
+				vDst.Elem().Set(vSrc)
+				return nil
+			},
 		}
 	}
 
-	tm := c.createMapper(opts)
-	c.mappers = append(c.mappers, tm)
+	tm := p.createMapper(opts)
+	p.mappers = append(p.mappers, tm)
 }
 
-func (c *Provider) createMapper(opts *StructOptions) core.Mapper {
+func (p *Provider) createMapper(opts *StructOptions) core.Mapper {
 	return core.NewFunctionMapper(opts.dst, opts.src, func(ctx core.Context, dst reflect.Value, src reflect.Value) error {
 		dst = reflect.Indirect(dst)
 		for _, fld := range opts.fields {
@@ -107,7 +129,6 @@ func (c *Provider) createMapper(opts *StructOptions) core.Mapper {
 
 func newStructOptions() *StructOptions {
 	return &StructOptions{
-		fieldMappingStrategy: ExactNameFieldMappingStrategy{},
 		fields: make(map[string]*FieldOptions),
 	}
 }
@@ -116,7 +137,7 @@ type StructOptions struct {
 	dst reflect.Type
 	src reflect.Type
 
-	fieldMappingStrategy FieldMappingStrategy
+	namingConvention NamingConvention
 
 	fields map[string]*FieldOptions
 }
@@ -147,42 +168,17 @@ func (o *StructOptions) Field(name string, fn interface{}) {
 	o.fields[sf.Name] = &opts
 }
 
+func (o *StructOptions) UseNamingConvention(nc NamingConvention) {
+	if nc == nil {
+		panic(fmt.Errorf("nc cannot be nil"))
+	}
+
+	o.namingConvention = nc
+}
+
 // FieldOptions contains options for a field mapping.
 type FieldOptions struct {
 	dst reflect.StructField
 
 	mapFn core.MapperFunc
-}
-
-// FieldMappingStrategy is a strategy for automatically mapping fields.
-type FieldMappingStrategy interface {
-	// Create makes a core.MapperFunc for the given destination. If one cannot be made, then nil should be returned.
-	Create(dst reflect.StructField, src reflect.Type) core.MapperFunc
-}
-
-type ExactNameFieldMappingStrategy struct {}
-
-func (ExactNameFieldMappingStrategy) Create(dst reflect.StructField, src reflect.Type) core.MapperFunc {
-	if src.Kind() == reflect.Ptr {
-		src = src.Elem()
-	}
-	if src.Kind() != reflect.Struct {
-		return nil
-	}
-
-	srcField, found := src.FieldByName(dst.Name)
-	if !found {
-		return nil
-	}
-
-	// TODO: ensure types are compatible
-
-	return func(ctx core.Context, vDst reflect.Value, vSrc reflect.Value) error {
-		if vSrc.IsNil() {
-			return nil
-		}
-		vSrc = reflect.Indirect(vSrc).FieldByIndex(srcField.Index)
-		vDst.Elem().Set(vSrc)
-		return nil
-	}
 }

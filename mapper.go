@@ -17,11 +17,6 @@ func New(providers ...core.Provider) (*Mapper, error) {
 				src[tm.Src()] = dstMap
 			}
 
-			_, ok = dstMap[tm.Dst()]
-			if ok {
-				return nil, newDuplicateTypeMapError(tm.Dst(), tm.Src())
-			}
-
 			dstMap[tm.Dst()] = tm
 		}
 	}
