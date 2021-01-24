@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/craiggwilson/go-mapper/pkg/auto/convert"
 	"github.com/craiggwilson/go-mapper/pkg/core"
 )
 
@@ -18,6 +19,9 @@ func NewProvider() *Provider {
 type Provider struct {
 	// strategies
 	namingConvention NamingConvention
+	converter        convert.Converter
+
+	opts []*StructOptions
 
 	mappers []core.Mapper
 }
@@ -27,8 +31,17 @@ func (p *Provider) Mappers() []core.Mapper {
 	return p.mappers
 }
 
-// UseNamingConvention applies the strategy to all future added structs.
-func (p *Provider) UseNamingConvention(nc NamingConvention) {
+// WithConverter applies the converter to all future uses.
+func (p *Provider) WithConverter(c convert.Converter) {
+	if c == nil {
+		panic(fmt.Errorf("c cannot be nil"))
+	}
+
+	p.converter = c
+}
+
+// WithNamingConvention applies the naming convention to all future uses.
+func (p *Provider) WithNamingConvention(nc NamingConvention) {
 	if nc == nil {
 		panic(fmt.Errorf("nc cannot be nil"))
 	}
@@ -51,8 +64,12 @@ func (p *Provider) AddStruct(fn interface{}) {
 		panic(fmt.Errorf("fn function must have no return values, but had %d", t.NumOut()))
 	}
 
-	opts := newStructOptions()
-	opts.namingConvention = p.namingConvention
+	opts := &StructOptions{
+		fields: make(map[string]*FieldOptions),
+		converter: p.converter,
+		namingConvention: p.namingConvention,
+	}
+
 	switch t.NumIn() {
 	case 3:
 		if !t.In(2).AssignableTo(tAutoTypeConfig) {
@@ -93,14 +110,22 @@ func (p *Provider) AddStruct(fn interface{}) {
 			continue
 		}
 
+		converter := opts.converter
+
 		opts.fields[fld.Name] = &FieldOptions{
 			dst: fld,
-			mapFn: func(ctx core.Context, vDst reflect.Value, vSrc reflect.Value) error {
-				if vSrc.IsNil() {
+			mapFn: func(ctx core.Context, dst reflect.Value, src reflect.Value) error {
+				if src.IsNil() {
 					return nil
 				}
-				vSrc = accessor.ValueFrom(vSrc)
-				vDst.Elem().Set(vSrc)
+				src = accessor.ValueFrom(src)
+
+				dst = dst.Elem()
+				if !src.Type().AssignableTo(dst.Type()) {
+					return converter.Convert(dst, src)
+				}
+
+				dst.Set(src)
 				return nil
 			},
 		}
@@ -127,16 +152,11 @@ func (p *Provider) createMapper(opts *StructOptions) core.Mapper {
 	})
 }
 
-func newStructOptions() *StructOptions {
-	return &StructOptions{
-		fields: make(map[string]*FieldOptions),
-	}
-}
-
 type StructOptions struct {
 	dst reflect.Type
 	src reflect.Type
 
+	converter convert.Converter
 	namingConvention NamingConvention
 
 	fields map[string]*FieldOptions
@@ -168,7 +188,15 @@ func (o *StructOptions) Field(name string, fn interface{}) {
 	o.fields[sf.Name] = &opts
 }
 
-func (o *StructOptions) UseNamingConvention(nc NamingConvention) {
+func (o *StructOptions) WithConverter(c convert.Converter) {
+	if c == nil {
+		panic(fmt.Errorf("c cannot be nil"))
+	}
+
+	o.converter = c
+}
+
+func (o *StructOptions) WithNamingConvention(nc NamingConvention) {
 	if nc == nil {
 		panic(fmt.Errorf("nc cannot be nil"))
 	}

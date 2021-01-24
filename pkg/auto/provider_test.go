@@ -14,11 +14,13 @@ func TestStructToStruct(t *testing.T) {
 	type order struct {
 		ID int
 		Customer *customer
+		Transaction string
 	}
 
 	type orderDTO struct {
 		ID int
 		CustomerName string
+		Transaction int
 	}
 
 	ap := auto.NewProvider()
