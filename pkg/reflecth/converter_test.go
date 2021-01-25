@@ -1,10 +1,10 @@
-package convert_test
+package reflecth_test
 
 import (
 	"reflect"
 	"testing"
 
-	"github.com/craiggwilson/go-mapper/pkg/auto/convert"
+	"github.com/craiggwilson/go-mapper/pkg/reflecth"
 )
 
 func TestConvert(t *testing.T) {
@@ -16,6 +16,8 @@ func TestConvert(t *testing.T) {
 		expected interface{}
 	} {
 		{"string to int", "10", 10},
+		{"string to *int", "10", ptrTo(10)},
+		{"string to **int", "10", ptrTo(ptrTo(10))},
 	}
 
 	for _, tc := range testCases {
@@ -26,7 +28,12 @@ func TestConvert(t *testing.T) {
 			src := reflect.ValueOf(tc.src)
 			dst := reflect.New(reflect.TypeOf(tc.expected))
 
-			err := convert.Convert(dst.Elem(), src)
+			converter, err := reflecth.ConverterFor(dst.Type(), src.Type())
+			if err != nil {
+				t.Fatalf("expected no error, but got %v", err)
+			}
+
+			err = converter.Convert(dst, src)
 			if err != nil {
 				t.Fatalf("expected no error, but got %v", err)
 			}
@@ -36,4 +43,11 @@ func TestConvert(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ptrTo(i interface{}) interface{} {
+	v := reflect.ValueOf(i)
+	p := reflect.New(v.Type())
+	p.Elem().Set(v)
+	return p.Interface()
 }

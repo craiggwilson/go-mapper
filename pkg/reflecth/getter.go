@@ -44,8 +44,8 @@ func (a *FieldGetter) ValueFrom(v reflect.Value) reflect.Value {
 	return reflect.Indirect(v).FieldByIndex(a.fld.Index)
 }
 
-// NewAccessorPair makes an GetterPair.
-func NewAccessorPair(first, second Getter) *GetterPair {
+// NewGetterPair makes an GetterPair.
+func NewGetterPair(first, second Getter) *GetterPair {
 	return &GetterPair{first, second}
 }
 
@@ -56,10 +56,6 @@ type GetterPair struct {
 	second Getter
 }
 
-// In implements the Getter interface.
-func (a *GetterPair) In() reflect.Type {
-	return a.first.In()
-}
 
 // Out implements the Getter interface.
 func (a *GetterPair) Out() reflect.Type {
