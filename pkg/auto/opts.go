@@ -1,16 +1,21 @@
 package auto
 
 import (
+	"github.com/craiggwilson/go-mapper/pkg/auto/naming"
 	"github.com/craiggwilson/go-mapper/pkg/core"
 	"github.com/craiggwilson/go-mapper/pkg/reflecth"
 )
 
+type withAccessorOpt interface {
+	WithAccessor(reflecth.Accessor)
+}
+
 type withConverterOpt interface {
-	WithConverter(c reflecth.Converter)
+	WithConverter(reflecth.Converter)
 }
 
 type withConverterFactoryOpt interface {
-	WithConverterFactory(cf reflecth.ConverterFactory)
+	WithConverterFactory(reflecth.ConverterFactory)
 }
 
 type withFieldOpt interface {
@@ -18,28 +23,47 @@ type withFieldOpt interface {
 }
 
 type withMapperOpt interface {
-	WithMapper(m core.Mapper)
+	WithMapper(core.Mapper)
 }
 
-type withNamingConventionOpt interface {
-	WithNamingConvention(nc NamingConvention)
+type withNamingStrategyOpt interface {
+	WithNamingStrategy(naming.Strategy)
 }
 
 type fieldOpts interface {
+	withAccessorOpt
 	withConverterOpt
 	withMapperOpt
-	withNamingConventionOpt
+	withNamingStrategyOpt
 }
 
 type structOpts interface {
 	withConverterFactoryOpt
 	withFieldOpt
-	withNamingConventionOpt
+	withNamingStrategyOpt
+}
+
+func WithFieldAccessor(a reflecth.Accessor) func(fieldOpts) {
+	return func(opt fieldOpts) {
+		opt.WithAccessor(a)
+	}
 }
 
 func WithFieldConverter(c reflecth.Converter) func(fieldOpts) {
 	return func(opt fieldOpts) {
 		opt.WithConverter(c)
+	}
+}
+
+func WithFieldMapper(m core.Mapper) func(opt fieldOpts) {
+	return func(opt fieldOpts) {
+		opt.WithMapper(m)
+	}
+}
+
+func WithFieldNamingConvention(ns naming.Strategy) func(fieldOpts) {
+	return func(opt fieldOpts) {
+		opt.WithNamingStrategy(ns)
 	}
 }
 
@@ -55,20 +79,8 @@ func WithStructField(name string, opts ...func(fieldOpts)) func(structOpts) {
 	}
 }
 
-func WithFieldMapper(m core.Mapper) func(opt fieldOpts) {
-	return func(opt fieldOpts) {
-		opt.WithMapper(m)
-	}
-}
-
-func WithFieldNamingConvention(nc NamingConvention) func(fieldOpts) {
-	return func(opt fieldOpts) {
-		opt.WithNamingConvention(nc)
-	}
-}
-
-func WithStructNamingConvention(nc NamingConvention) func(structOpts) {
+func WithStructNamingConvention(ns naming.Strategy) func(structOpts) {
 	return func(opt structOpts) {
-		opt.WithNamingConvention(nc)
+		opt.WithNamingStrategy(ns)
 	}
 }
