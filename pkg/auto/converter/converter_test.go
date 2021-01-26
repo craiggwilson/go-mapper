@@ -1,10 +1,10 @@
-package reflecth_test
+package converter_test
 
 import (
 	"reflect"
 	"testing"
 
-	"github.com/craiggwilson/go-mapper/pkg/reflecth"
+	converter2 "github.com/craiggwilson/go-mapper/pkg/auto/converter"
 )
 
 func TestConvert(t *testing.T) {
@@ -28,7 +28,7 @@ func TestConvert(t *testing.T) {
 			src := reflect.ValueOf(tc.src)
 			dst := reflect.New(reflect.TypeOf(tc.expected))
 
-			converter, err := reflecth.ConverterFor(dst.Type(), src.Type())
+			converter, err := converter2.For(dst.Type(), src.Type())
 			if err != nil {
 				t.Fatalf("expected no error, but got %v", err)
 			}

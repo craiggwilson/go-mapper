@@ -3,12 +3,12 @@ package auto
 import (
 	"reflect"
 
+	"github.com/craiggwilson/go-mapper/pkg/auto/accessor"
 	"github.com/craiggwilson/go-mapper/pkg/auto/naming"
-	"github.com/craiggwilson/go-mapper/pkg/reflecth"
 )
 
-func matchNameToSource(nc naming.Strategy, name string, src reflect.Type) reflecth.Accessor {
-	var currentAccessor reflecth.Accessor
+func findAccessor(ns naming.Strategy, name string, src reflect.Type) accessor.Accessor {
+	var currentAccessor accessor.Accessor
 	lastName := name
 	currentName := name
 	currentType := src
@@ -17,16 +17,16 @@ func matchNameToSource(nc naming.Strategy, name string, src reflect.Type) reflec
 			currentType = currentType.Elem()
 		}
 
-		for _, p := range nc.Possibilities(currentName) {
+		for _, p := range ns.Possibilities(currentName) {
 			fld, found := currentType.FieldByName(p.Match)
 			if !found {
 				continue
 			}
 
 			if currentAccessor == nil {
-				currentAccessor = reflecth.NewFieldAccessor(fld)
+				currentAccessor = accessor.Field(fld)
 			} else {
-				currentAccessor = reflecth.NewAccessorPair(currentAccessor, reflecth.NewFieldAccessor(fld))
+				currentAccessor = accessor.Pair(currentAccessor, accessor.Field(fld))
 			}
 
 			lastName = currentName

@@ -1,21 +1,22 @@
 package auto
 
 import (
+	"github.com/craiggwilson/go-mapper/pkg/auto/accessor"
+	"github.com/craiggwilson/go-mapper/pkg/auto/converter"
 	"github.com/craiggwilson/go-mapper/pkg/auto/naming"
 	"github.com/craiggwilson/go-mapper/pkg/core"
-	"github.com/craiggwilson/go-mapper/pkg/reflecth"
 )
 
 type withAccessorOpt interface {
-	WithAccessor(reflecth.Accessor)
+	WithAccessor(accessor.Accessor)
 }
 
 type withConverterOpt interface {
-	WithConverter(reflecth.Converter)
+	WithConverter(converter.Converter)
 }
 
 type withConverterFactoryOpt interface {
-	WithConverterFactory(reflecth.ConverterFactory)
+	WithConverterFactory(converter.Factory)
 }
 
 type withFieldOpt interface {
@@ -43,13 +44,13 @@ type structOpts interface {
 	withNamingStrategyOpt
 }
 
-func WithFieldAccessor(a reflecth.Accessor) func(fieldOpts) {
+func WithFieldAccessor(a accessor.Accessor) func(fieldOpts) {
 	return func(opt fieldOpts) {
 		opt.WithAccessor(a)
 	}
 }
 
-func WithFieldConverter(c reflecth.Converter) func(fieldOpts) {
+func WithFieldConverter(c converter.Converter) func(fieldOpts) {
 	return func(opt fieldOpts) {
 		opt.WithConverter(c)
 	}
@@ -67,7 +68,7 @@ func WithFieldNamingConvention(ns naming.Strategy) func(fieldOpts) {
 	}
 }
 
-func WithStructConverterFactory(cf reflecth.ConverterFactory) func(structOpts) {
+func WithStructConverterFactory(cf converter.Factory) func(structOpts) {
 	return func(opt structOpts) {
 		opt.WithConverterFactory(cf)
 	}

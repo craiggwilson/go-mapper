@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/craiggwilson/go-mapper/pkg/auto/accessor"
+	"github.com/craiggwilson/go-mapper/pkg/auto/converter"
 	"github.com/craiggwilson/go-mapper/pkg/auto/naming"
 	"github.com/craiggwilson/go-mapper/pkg/core"
-	"github.com/craiggwilson/go-mapper/pkg/reflecth"
 )
 
 // NewProvider makes an Provider.
 func NewProvider() *Provider {
 	return &Provider{
-		converterFactory: reflecth.ConverterFactoryFunc(reflecth.ConverterFor),
+		converterFactory: converter.FactoryFunc(converter.For),
 		namingStrategy:   naming.PascalCase{},
 	}
 }
@@ -20,7 +21,7 @@ func NewProvider() *Provider {
 // Provider is used to automatically map types following prescribed strategies for naming and type conversion.
 type Provider struct {
 	// strategies
-	converterFactory reflecth.ConverterFactory
+	converterFactory converter.Factory
 	namingStrategy   naming.Strategy
 
 	structs []*Struct
@@ -37,7 +38,7 @@ func (p *Provider) Mappers() []core.Mapper {
 }
 
 // WithConverterFactory applies the converterFactory to all future uses.
-func (p *Provider) WithConverterFactory(cf reflecth.ConverterFactory) {
+func (p *Provider) WithConverterFactory(cf converter.Factory) {
 	p.converterFactory = cf
 }
 
@@ -89,27 +90,27 @@ func (p *Provider) createMapper(s *Struct) core.Mapper {
 			}
 		}
 
-		accessor := f.accessor
-		if accessor == nil {
-			accessor = matchNameToSource(namingStrategy, fld.Name, s.src)
-			if accessor == nil {
+		acc := f.accessor
+		if acc == nil {
+			acc = findAccessor(namingStrategy, fld.Name, s.src)
+			if acc == nil {
 				continue
 			}
 		}
 
-		converter := f.converter
-		if converter == nil {
+		conv := f.converter
+		if conv == nil {
 			var err error
-			converter, err = converterFactory.ConverterFor(fld.Type, accessor.Type())
+			conv, err = converterFactory.ConverterFor(fld.Type, acc.Type())
 			if err != nil {
 				continue
 			}
 		}
 
 		fields[fld.Name] = &Field{
-			dst: fld,
-			accessor: accessor,
-			converter: converter,
+			dst:       fld,
+			accessor:  acc,
+			converter: conv,
 			mapper: core.NewFunctionMapper(
 				fld.Type,
 				s.src,
@@ -118,10 +119,10 @@ func (p *Provider) createMapper(s *Struct) core.Mapper {
 						return nil
 					}
 
-					src = accessor.ValueFrom(src)
+					src = acc.ValueFrom(src)
 
-					if converter != nil {
-						return converter.Convert(dst, src)
+					if conv != nil {
+						return conv.Convert(dst, src)
 					}
 
 					dst.Elem().Set(src)
@@ -163,7 +164,7 @@ type Struct struct {
 	dst reflect.Type
 	src reflect.Type
 
-	converterFactory reflecth.ConverterFactory
+	converterFactory converter.Factory
 	namingStrategy   naming.Strategy
 
 	fields map[string]*Field
@@ -177,7 +178,7 @@ func (s *Struct) Src() reflect.Type {
 	return s.src
 }
 
-func (s *Struct) WithConverterFactory(cf reflecth.ConverterFactory) {
+func (s *Struct) WithConverterFactory(cf converter.Factory) {
 	s.converterFactory = cf
 }
 
@@ -205,17 +206,17 @@ func (s *Struct) WithNamingStrategy(ns naming.Strategy) {
 type Field struct {
 	dst reflect.StructField
 
-	accessor       reflecth.Accessor
-	converter      reflecth.Converter
+	accessor       accessor.Accessor
+	converter      converter.Converter
 	mapper         core.Mapper
 	namingStrategy naming.Strategy
 }
 
-func (f *Field) WithAccessor(a reflecth.Accessor) {
+func (f *Field) WithAccessor(a accessor.Accessor) {
 	f.accessor = a
 }
 
-func (f *Field) WithConverter(c reflecth.Converter) {
+func (f *Field) WithConverter(c converter.Converter) {
 	f.converter = c
 }
 

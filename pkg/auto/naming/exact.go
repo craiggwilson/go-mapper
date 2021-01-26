@@ -1,5 +1,10 @@
 package naming
 
+// Exact returns the implementation for an exact match naming strategy.
+func Exact() ExactMatch {
+	return ExactMatch{}
+}
+
 // ExactMatch provides only an exact match possibility.
 type ExactMatch struct {}
 
