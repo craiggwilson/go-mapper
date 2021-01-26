@@ -4,10 +4,12 @@ import (
 	"reflect"
 	"strings"
 	"unicode"
+
+	"github.com/craiggwilson/go-mapper/pkg/reflecth"
 )
 
-func applyNamingConvention(nc NamingConvention, name string, src reflect.Type) Accessor {
-	var currentAccessor Accessor
+func matchNameToSource(nc NamingConvention, name string, src reflect.Type) reflecth.Accessor {
+	var currentAccessor reflecth.Accessor
 	lastName := name
 	currentName := name
 	currentType := src
@@ -23,14 +25,14 @@ func applyNamingConvention(nc NamingConvention, name string, src reflect.Type) A
 			}
 
 			if currentAccessor == nil {
-				currentAccessor = NewFieldAccessor(src, fld)
+				currentAccessor = reflecth.NewFieldAccessor(fld)
 			} else {
-				currentAccessor = NewAccessorPair(currentAccessor, NewFieldAccessor(src, fld))
+				currentAccessor = reflecth.NewAccessorPair(currentAccessor, reflecth.NewFieldAccessor(fld))
 			}
 
 			lastName = currentName
 			currentName = pm[1]
-			currentType = currentAccessor.Out()
+			currentType = currentAccessor.Type()
 			break
 		}
 

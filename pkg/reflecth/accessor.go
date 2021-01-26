@@ -1,37 +1,36 @@
-package auto
+package reflecth
 
 import (
 	"reflect"
 )
 
-// Accessor retrieves a value from another value.
+// Accessor retrieves a value.
 type Accessor interface {
-	// In is the type of the input value.
-	In() reflect.Type
-	// Out is the type of the returned value.
-	Out() reflect.Type
+	// Name indicates the source of the value.
+	Name() string
+	// Type is the type of the returned value.
+	Type() reflect.Type
 	// ValueFrom retrieves a value from the provided value.
 	ValueFrom(v reflect.Value) reflect.Value
 }
 
 // NewFieldAccessor makes a FieldAccessor.
-func NewFieldAccessor(in reflect.Type, fld reflect.StructField) *FieldAccessor {
-	return &FieldAccessor{in, fld}
+func NewFieldAccessor(fld reflect.StructField) *FieldAccessor {
+	return &FieldAccessor{fld}
 }
 
 // FieldAccessor retrieves a value from a field in a struct.
 type FieldAccessor struct {
-	in reflect.Type
 	fld reflect.StructField
 }
 
-// In implements the Accessor interface.
-func (a *FieldAccessor) In() reflect.Type {
-	return a.in
+// Name implements the Accessor interface.
+func (a *FieldAccessor) Name() string {
+	return a.fld.Name
 }
 
-// Out implements the Accessor interface.
-func (a *FieldAccessor) Out() reflect.Type {
+// Type implements the Accessor interface.
+func (a *FieldAccessor) Type() reflect.Type {
 	return a.fld.Type
 }
 
@@ -49,21 +48,21 @@ func NewAccessorPair(first, second Accessor) *AccessorPair {
 	return &AccessorPair{first, second}
 }
 
-// AccessorPair chains access to a field through a pair of accessors, where the results of the first
+// AccessorPair chains access to a field through a pair of getters, where the results of the first
 // are piped to the second.
 type AccessorPair struct {
-	first Accessor
+	first  Accessor
 	second Accessor
 }
 
-// In implements the Accessor interface.
-func (a *AccessorPair) In() reflect.Type {
-	return a.first.In()
+// Name implements the Accessor interface.
+func (a *AccessorPair) Name() string {
+	return a.first.Name() + "." + a.second.Name()
 }
 
-// Out implements the Accessor interface.
-func (a *AccessorPair) Out() reflect.Type {
-	return a.second.Out()
+// Type implements the Accessor interface.
+func (a *AccessorPair) Type() reflect.Type {
+	return a.second.Type()
 }
 
 // ValueFrom implements the Accessor interface.
