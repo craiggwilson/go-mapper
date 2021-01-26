@@ -2,6 +2,7 @@ package auto_test
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/craiggwilson/go-mapper/pkg/auto"
@@ -24,13 +25,17 @@ func TestStructToStruct(t *testing.T) {
 	}
 
 	ap := auto.NewProvider()
-	ap.AddStruct(func(_ *orderDTO, _ *order) {})
+	ap.Add(
+		reflect.TypeOf(new(orderDTO)),
+		reflect.TypeOf(new(order)),
+	)
 
 	src := order{
 		ID: 10,
 		Customer: &customer {
 			Name: "Blockus",
 		},
+		Transaction: "42",
 	}
 	var dst orderDTO
 	err := ap.Mappers()[0].Map(nil, reflect.ValueOf(&dst), reflect.ValueOf(&src))
@@ -42,6 +47,9 @@ func TestStructToStruct(t *testing.T) {
 		t.Fatalf("expected %d, but got %d", src.ID, dst.ID)
 	}
 	if dst.CustomerName != src.Customer.Name {
-		t.Fatalf("expected %q, but got %q", src.Customer.Name, dst.CustomerName)
+		t.Fatalf("expected %s, but got %s", src.Customer.Name, dst.CustomerName)
+	}
+	if trans, _ := strconv.Atoi(src.Transaction); dst.Transaction != trans {
+		t.Fatalf("expected %d, but got %d", trans, dst.Transaction)
 	}
 }

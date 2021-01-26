@@ -5,6 +5,6 @@ import (
 )
 
 var (
-	tAutoTypeConfig = reflect.TypeOf(new(StructOptions))
+	tAutoTypeConfig = reflect.TypeOf(new(Struct))
 )
 

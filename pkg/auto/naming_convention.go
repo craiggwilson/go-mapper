@@ -14,7 +14,7 @@ func matchNameToSource(nc NamingConvention, name string, src reflect.Type) refle
 	currentName := name
 	currentType := src
 	for len(currentName) > 0 {
-		if currentType.Kind() == reflect.Ptr {
+		for currentType.Kind() == reflect.Ptr {
 			currentType = currentType.Elem()
 		}
 

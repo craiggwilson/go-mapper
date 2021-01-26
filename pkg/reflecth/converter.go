@@ -70,12 +70,12 @@ func stringToInt(dst reflect.Value, src reflect.Value) error {
 		return nil
 	}
 
-	i64, err := strconv.ParseInt(src.String(), 10, 64)
+	i, err := strconv.Atoi(src.String())
 	if err != nil {
 		return err
 	}
 
-	dst.SetInt(i64)
+	dst.SetInt(int64(i))
 	return nil
 }
 
