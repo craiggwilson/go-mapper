@@ -161,7 +161,14 @@ func (p *Provider) createMapper(opts *StructOptions) core.Mapper {
 			}
 
 			if err := fld.mapFn(ctx, fv.Addr(), src); err != nil {
-				return fmt.Errorf("mapping field %q using custom function: %w", fld.dst.Name, err)
+				name := "(custom function)"
+				if fld.accessor != nil {
+					name = fld.accessor.Name()
+				}
+				return fmt.Errorf("mapping field %q from %q: %w",
+					fmt.Sprintf("%v.%s", dst.Type(), fld.dst.Name),
+					fmt.Sprintf("%v.%s", src.Type(), name),
+					err)
 			}
 		}
 

@@ -38,6 +38,9 @@ func (f ConverterFunc) Convert(dst reflect.Value, src reflect.Value) error {
 func ConverterFor(dst reflect.Type, src reflect.Type) (Converter, error) {
 	dst = unwrapPtr(dst)
 	src = unwrapPtr(src)
+	if dst.AssignableTo(src) {
+		return nil, nil
+	}
 	switch dst.Kind() {
 	case reflect.Int:
 		return toIntConverter(src)
@@ -61,6 +64,10 @@ func stringToInt(dst reflect.Value, src reflect.Value) error {
 	dst, err := findSetter(dst)
 	if err != nil {
 		return err
+	}
+
+	if src.IsZero() {
+		return nil
 	}
 
 	i64, err := strconv.ParseInt(src.String(), 10, 64)
