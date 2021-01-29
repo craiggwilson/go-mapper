@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+
+	"github.com/craiggwilson/go-mapper/pkg/internal"
 )
 
 // Factory returns a Converter.
@@ -36,8 +38,8 @@ func (f Func) Convert(dst reflect.Value, src reflect.Value) error {
 
 // For is the default implementation of a Factory.
 func For(dst reflect.Type, src reflect.Type) (Converter, error) {
-	dst = unwrapPtr(dst)
-	src = unwrapPtr(src)
+	dst = internal.UnwrapPtrType(dst)
+	src = internal.UnwrapPtrType(src)
 	if dst.AssignableTo(src) {
 		return nil, nil
 	}
@@ -61,10 +63,8 @@ func toIntConverter(src reflect.Type) (Converter, error) {
 }
 
 func stringToInt(dst reflect.Value, src reflect.Value) error {
-	dst, err := findSetter(dst)
-	if err != nil {
-		return err
-	}
+	dst = internal.EnsureSettableDst(dst)
+	src = internal.UnwrapPtrValue(src)
 
 	if src.IsZero() {
 		return nil
@@ -77,33 +77,4 @@ func stringToInt(dst reflect.Value, src reflect.Value) error {
 
 	dst.SetInt(int64(i))
 	return nil
-}
-
-func findSetter(dst reflect.Value) (reflect.Value, error) {
-	if dst.Kind() != reflect.Ptr {
-		return reflect.Value{}, fmt.Errorf("dst must be a pointer")
-	}
-
-	dst = dst.Elem()
-	for dst.Kind() == reflect.Ptr {
-		if !dst.Elem().IsValid() || dst.Elem().IsNil() {
-			nv := reflect.New(dst.Type().Elem())
-			dst.Set(nv)
-		}
-
-		dst = dst.Elem()
-	}
-
-	if !dst.CanSet() {
-		return reflect.Value{}, fmt.Errorf("dst must be settable")
-	}
-
-	return dst, nil
-}
-
-func unwrapPtr(t reflect.Type) reflect.Type {
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	return t
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/craiggwilson/go-mapper/pkg/auto/converter"
 	"github.com/craiggwilson/go-mapper/pkg/auto/naming"
 	"github.com/craiggwilson/go-mapper/pkg/core"
+	"github.com/craiggwilson/go-mapper/pkg/internal"
 )
 
 // NewProvider makes an Provider.
@@ -49,6 +50,10 @@ func (p *Provider) WithNamingConvention(ns naming.Strategy) {
 
 // Add adds a src and dst to automatically create a core.Mapper.
 func (p *Provider) Add(dst reflect.Type, src reflect.Type, opts ...func(structOpts)) {
+	// Use the bare, non-pointer types for mapping.
+	dst = internal.UnwrapPtrType(dst)
+	src = internal.UnwrapPtrType(src)
+
 	s := Struct{
 		dst: dst,
 		src: src,
@@ -72,14 +77,13 @@ func (p *Provider) createMapper(s *Struct) core.Mapper {
 		namingStrategy = p.namingStrategy
 	}
 
-	dst := s.dst.Elem()
-	fields := make(map[string]*Field, dst.NumField())
+	fields := make(map[string]*Field, s.dst.NumField())
 	for k, fld := range s.fields {
 		fields[k] = fld
 	}
 
-	for i := 0; i < dst.NumField(); i++ {
-		fld := dst.Field(i)
+	for i := 0; i < s.dst.NumField(); i++ {
+		fld := s.dst.Field(i)
 		f, ok := fields[fld.Name]
 		if ok && f.mapper != nil {
 			// If we have a mapper already, we don't need to do any automapping work.
@@ -125,7 +129,8 @@ func (p *Provider) createMapper(s *Struct) core.Mapper {
 						return conv.Convert(dst, src)
 					}
 
-					dst.Elem().Set(src)
+					dst = internal.EnsureSettableDst(dst)
+					dst.Set(internal.UnwrapPtrValue(src))
 					return nil
 				},
 			),
@@ -136,7 +141,7 @@ func (p *Provider) createMapper(s *Struct) core.Mapper {
 		s.dst,
 		s.src,
 		func(ctx core.Context, dst reflect.Value, src reflect.Value) error {
-			dst = reflect.Indirect(dst)
+			dst = internal.EnsureSettableDst(dst)
 			for _, fld := range fields {
 				fv := dst.FieldByIndex(fld.dst.Index)
 				if !fv.CanAddr() {
