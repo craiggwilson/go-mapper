@@ -29,13 +29,17 @@ type Provider struct {
 }
 
 // Mappers implements the core.Provider interface.
-func (p *Provider) Mappers() []core.Mapper {
+func (p *Provider) Mappers() ([]core.Mapper, error) {
 	mappers := make([]core.Mapper, 0, len(p.structs))
 	for _, opt := range p.structs {
-		mappers = append(mappers, p.createMapper(opt))
+		mapper, err := p.createMapper(opt)
+		if err != nil {
+			return nil, err
+		}
+		mappers = append(mappers, mapper)
 	}
 
-	return mappers
+	return mappers, nil
 }
 
 // WithConverterFactory applies the converterFactory to all future uses.
@@ -67,7 +71,7 @@ func (p *Provider) Add(dst reflect.Type, src reflect.Type, opts ...func(structOp
 	p.structs = append(p.structs, &s)
 }
 
-func (p *Provider) createMapper(s *Struct) core.Mapper {
+func (p *Provider) createMapper(s *Struct) (core.Mapper, error) {
 	converterFactory := s.converterFactory
 	if converterFactory == nil {
 		converterFactory = p.converterFactory
@@ -94,6 +98,10 @@ func (p *Provider) createMapper(s *Struct) core.Mapper {
 			}
 		}
 
+		if f.ignore {
+			continue
+		}
+
 		acc := f.accessor
 		if acc == nil {
 			acc = findAccessor(namingStrategy, fld.Name, s.src)
@@ -107,7 +115,10 @@ func (p *Provider) createMapper(s *Struct) core.Mapper {
 			var err error
 			conv, err = converterFactory.ConverterFor(fld.Type, acc.Type())
 			if err != nil {
-				continue
+				return nil, fmt.Errorf("mapping field %q from %q: %w",
+					fmt.Sprintf("%v.%s", s.dst.Name(), fld.Name),
+					fmt.Sprintf("%v.%s", s.src.Name(), acc.Name()),
+					err)
 			}
 		}
 
@@ -144,6 +155,10 @@ func (p *Provider) createMapper(s *Struct) core.Mapper {
 			dst = internal.EnsureSettableDst(dst)
 			for _, fld := range fields {
 				fv := dst.FieldByIndex(fld.dst.Index)
+				if fld.ignore {
+					continue
+				}
+
 				if !fv.CanAddr() {
 					return fmt.Errorf("field %q cannot be addressed", fld.dst.Name)
 				}
@@ -162,7 +177,7 @@ func (p *Provider) createMapper(s *Struct) core.Mapper {
 
 			return nil
 		},
-	)
+	), nil
 }
 
 type Struct struct {
@@ -188,7 +203,7 @@ func (s *Struct) WithConverterFactory(cf converter.Factory) {
 }
 
 func (s *Struct) WithField(name string, opts ...func(fieldOpts)) {
-	sf, found := s.dst.Elem().FieldByName(name)
+	sf, found := s.dst.FieldByName(name)
 	if !found {
 		panic(fmt.Errorf("field %q does not exist on %v", name, s.dst))
 	}
@@ -213,6 +228,7 @@ type Field struct {
 
 	accessor       accessor.Accessor
 	converter      converter.Converter
+	ignore bool
 	mapper         core.Mapper
 	namingStrategy naming.Strategy
 }
@@ -223,6 +239,10 @@ func (f *Field) WithAccessor(a accessor.Accessor) {
 
 func (f *Field) WithConverter(c converter.Converter) {
 	f.converter = c
+}
+
+func (f *Field) WithIgnore() {
+	f.ignore = true
 }
 
 func (f *Field) WithMapper(m core.Mapper) {

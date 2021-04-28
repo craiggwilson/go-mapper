@@ -10,14 +10,14 @@ import (
 
 // Factory returns a Converter.
 type Factory interface {
-	// For returns a converter for the src and dest.
+	// ConverterFor returns a converter for the src and dest.
 	ConverterFor(dst reflect.Type, src reflect.Type) (Converter, error)
 }
 
 // FactoryFunc is a functional implementation of a Factory.
 type FactoryFunc func(dst reflect.Type, src reflect.Type) (Converter, error)
 
-// Convert implements the Converter interface.
+// ConverterFor implements the Factory interface.
 func (f FactoryFunc) ConverterFor(dst reflect.Type, src reflect.Type) (Converter, error) {
 	return f(dst, src)
 }
@@ -46,6 +46,8 @@ func For(dst reflect.Type, src reflect.Type) (Converter, error) {
 	switch dst.Kind() {
 	case reflect.Int:
 		return toIntConverter(src)
+	case reflect.String:
+		return toStringConverter(src)
 	default:
 		return nil, fmt.Errorf("cannot convert from %v to %v", src, dst)
 	}
@@ -60,6 +62,30 @@ func toIntConverter(src reflect.Type) (Converter, error) {
 	default:
 		return nil, fmt.Errorf("no converter for string -> %v available", src)
 	}
+}
+
+func toStringConverter(src reflect.Type) (Converter, error) {
+	switch src.Kind() {
+	case reflect.Int:
+		return Func(intToString), nil
+	case reflect.String:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("no converter for int -> %v available", src)
+	}
+}
+
+func intToString(dst reflect.Value, src reflect.Value) error {
+	dst = internal.EnsureSettableDst(dst)
+	src = internal.UnwrapPtrValue(src)
+
+	if src.IsZero() {
+		return nil
+	}
+
+	s := strconv.FormatInt(src.Int(), 10)
+	dst.SetString(s)
+	return nil
 }
 
 func stringToInt(dst reflect.Value, src reflect.Value) error {

@@ -10,7 +10,11 @@ import (
 func New(providers ...core.Provider) (*Mapper, error) {
 	src := make(map[reflect.Type]map[reflect.Type]core.Mapper)
 	for _, p := range providers {
-		for _, tm := range p.Mappers() {
+		mappers, err := p.Mappers()
+		if err != nil {
+			return nil, err
+		}
+		for _, tm := range mappers {
 			dstMap, ok := src[tm.Src()]
 			if !ok {
 				dstMap = make(map[reflect.Type]core.Mapper)

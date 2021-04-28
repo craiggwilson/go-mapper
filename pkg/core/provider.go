@@ -2,5 +2,5 @@ package core
 
 // Provider provides Mappers.
 type Provider interface {
-	Mappers() []Mapper
+	Mappers() ([]Mapper, error)
 }

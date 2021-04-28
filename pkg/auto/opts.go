@@ -23,6 +23,10 @@ type withFieldOpt interface {
 	WithField(name string, opts ...func(fieldOpts))
 }
 
+type withIgnoreOpt interface {
+	WithIgnore()
+}
+
 type withMapperOpt interface {
 	WithMapper(core.Mapper)
 }
@@ -34,6 +38,7 @@ type withNamingStrategyOpt interface {
 type fieldOpts interface {
 	withAccessorOpt
 	withConverterOpt
+	withIgnoreOpt
 	withMapperOpt
 	withNamingStrategyOpt
 }
@@ -53,6 +58,12 @@ func WithFieldAccessor(a accessor.Accessor) func(fieldOpts) {
 func WithFieldConverter(c converter.Converter) func(fieldOpts) {
 	return func(opt fieldOpts) {
 		opt.WithConverter(c)
+	}
+}
+
+func WithFieldIgnore() func(fieldOpts) {
+	return func(opt fieldOpts) {
+		opt.WithIgnore()
 	}
 }
 
